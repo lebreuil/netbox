@@ -1,0 +1,33 @@
+# NetBox Ingress resource
+# Managed by: Application team (in NetBox application repository)
+#
+# Exposes NetBox externally via the shared NGINX Ingress Controller.
+# TLS certificate is provisioned automatically by cert-manager using
+# the letsencrypt-prod ClusterIssuer managed by the platform team.
+# DNS is covered by the wildcard *.your-domain.com record managed
+# by the platform team — no DNS change needed.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: netbox-ingress
+  namespace: netbox
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.org/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - netbox.your-domain.com
+      secretName: netbox-tls
+  rules:
+    - host: netbox.your-domain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: netbox
+                port:
+                  number: 80

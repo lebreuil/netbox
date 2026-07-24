@@ -1,0 +1,113 @@
+# NetBox Helm chart values
+# Managed by: Application team (in NetBox application repository)
+#
+# Secret management:
+#   All secrets are fetched from OpenBao at pod startup via the OpenBao
+#   Agent Injector sidecar. Secrets are written as files to /bao/secrets/
+#   inside the pod and are never stored as Kubernetes Secrets.
+#
+#   The platform team must create the following secrets in OpenBao at
+#   secret/netbox/config before the application can start:
+#     secret-key:            Django session encryption key (50+ chars)
+#     superuser-password:    Initial admin password
+#     superuser-api-token:   Initial admin API token (40 hex chars)
+#     postgresql-password:   PostgreSQL password
+#     valkey-password:       Valkey password
+#     email-password:        SMTP email password (can be empty)
+#
+# Networking:
+#   Service type is ClusterIP — external access is handled by the
+#   NGINX Ingress resource in ingress.yaml.
+#
+# Node scheduling:
+#   All NetBox components run on worker nodes via nodeSelector.
+#   The custom.kaas.infomaniak.cloud/node-role=worker label is applied
+#   to the worker node pool by the platform team in kaas.tf.
+
+allowedHosts:
+  - "netbox.your-domain.com"
+
+superuser:
+  name: admin
+  email: "admin@your-domain.com"
+  existingSecret: "netbox-secrets"
+
+existingSecret: "netbox-secrets"
+
+externalDatabase:
+  existingSecretName: "netbox-secrets"
+  existingSecretKey: "postgresql-password"
+
+taskQueuing:
+  existingSecretName: "netbox-secrets"
+  existingSecretKey: "valkey-password"
+
+cachingDatabase:
+  existingSecretName: "netbox-secrets"
+  existingSecretKey: "valkey-password"
+
+email:
+  existingSecretName: "netbox-secrets"
+  existingSecretKey: "email-password"
+
+valkey:
+  architecture: standalone
+  auth:
+    existingSecret: "netbox-secrets"
+    existingSecretPasswordKey: "valkey-password"
+  primary:
+    nodeSelector:
+      custom.kaas.infomaniak.cloud/node-role: "worker"
+
+postgresql:
+  primary:
+    nodeSelector:
+      custom.kaas.infomaniak.cloud/node-role: "worker"
+
+nodeSelector:
+  custom.kaas.infomaniak.cloud/node-role: "worker"
+
+worker:
+  nodeSelector:
+    custom.kaas.infomaniak.cloud/node-role: "worker"
+
+housekeeping:
+  nodeSelector:
+    custom.kaas.infomaniak.cloud/node-role: "worker"
+
+service:
+  type: ClusterIP
+
+persistence:
+  enabled: false
+
+livenessProbe:
+  initialDelaySeconds: 120
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 5
+
+readinessProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 20
+  timeoutSeconds: 10
+  failureThreshold: 5
+
+# OpenBao Agent Injector annotations
+# The injector automatically injects a sidecar into NetBox pods that
+# fetches secrets from OpenBao and writes them to /bao/secrets/.
+# An init container then creates the netbox-secrets Kubernetes Secret
+# from these files so the Helm chart can reference them via existingSecret.
+podAnnotations:
+  bao.openbao.org/agent-inject: "true"
+  bao.openbao.org/role: "netbox"
+  bao.openbao.org/agent-inject-secret-config: "secret/data/netbox/config"
+  bao.openbao.org/agent-inject-template-config: |
+    {{- with secret "secret/data/netbox/config" -}}
+    secret-key={{ .Data.data.secret-key }}
+    superuser-password={{ .Data.data.superuser-password }}
+    superuser-api-token={{ .Data.data.superuser-api-token }}
+    postgresql-password={{ .Data.data.postgresql-password }}
+    valkey-password={{ .Data.data.valkey-password }}
+    email-password={{ .Data.data.email-password }}
+    {{- end }}
