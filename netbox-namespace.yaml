@@ -1,6 +1,0 @@
-# NetBox namespace
-# Managed by: Application team (in NetBox application repository)
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: netbox

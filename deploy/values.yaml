@@ -1,10 +1,9 @@
 # NetBox Helm chart values
-# Managed by: Application team (in NetBox application repository)
 #
 # Secret management:
 #   All secrets are fetched from OpenBao at pod startup via the OpenBao
 #   Agent Injector sidecar. Secrets are written as files to /bao/secrets/
-#   inside the pod and are never stored as Kubernetes Secrets.
+#   and never stored as Kubernetes Secrets.
 #
 #   The platform team must create the following secrets in OpenBao at
 #   secret/netbox/config before the application can start:
@@ -16,13 +15,14 @@
 #     email-password:        SMTP email password (can be empty)
 #
 # Networking:
-#   Service type is ClusterIP — external access is handled by the
-#   NGINX Ingress resource in ingress.yaml.
+#   Service type is ClusterIP — external access via NGINX Ingress
+#   managed by Terraform in netbox.tf.
+#
+# Ingress:
+#   Disabled — managed by Terraform in netbox.tf.
 #
 # Node scheduling:
-#   All NetBox components run on worker nodes via nodeSelector.
-#   The custom.kaas.infomaniak.cloud/node-role=worker label is applied
-#   to the worker node pool by the platform team in kaas.tf.
+#   All NetBox components run on worker nodes.
 
 allowedHosts:
   - "netbox.your-domain.com"
@@ -50,6 +50,7 @@ email:
   existingSecretName: "netbox-secrets"
   existingSecretKey: "email-password"
 
+# Valkey — standalone mode to minimise resource usage
 valkey:
   architecture: standalone
   auth:
@@ -59,11 +60,13 @@ valkey:
     nodeSelector:
       custom.kaas.infomaniak.cloud/node-role: "worker"
 
+# PostgreSQL
 postgresql:
   primary:
     nodeSelector:
       custom.kaas.infomaniak.cloud/node-role: "worker"
 
+# Node scheduling — all components on worker nodes
 nodeSelector:
   custom.kaas.infomaniak.cloud/node-role: "worker"
 
@@ -75,12 +78,19 @@ housekeeping:
   nodeSelector:
     custom.kaas.infomaniak.cloud/node-role: "worker"
 
+# Service — ClusterIP only, ingress managed by Terraform
 service:
   type: ClusterIP
 
+# Persistence — disabled to avoid ReadWriteOnce PVC scheduling issues
 persistence:
   enabled: false
 
+# Ingress — disabled, managed by Terraform in netbox.tf
+ingress:
+  enabled: false
+
+# Probe timeouts — extended to allow database migrations on first run
 livenessProbe:
   initialDelaySeconds: 120
   periodSeconds: 30
@@ -94,10 +104,10 @@ readinessProbe:
   failureThreshold: 5
 
 # OpenBao Agent Injector annotations
-# The injector automatically injects a sidecar into NetBox pods that
-# fetches secrets from OpenBao and writes them to /bao/secrets/.
-# An init container then creates the netbox-secrets Kubernetes Secret
-# from these files so the Helm chart can reference them via existingSecret.
+# The injector sidecar fetches secrets from OpenBao at pod startup
+# and writes them to /bao/secrets/config inside the pod.
+# The init container then creates the netbox-secrets Kubernetes Secret
+# from the injected file so the chart can reference it via existingSecret.
 podAnnotations:
   bao.openbao.org/agent-inject: "true"
   bao.openbao.org/role: "netbox"
