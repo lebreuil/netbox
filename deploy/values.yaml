@@ -25,14 +25,17 @@
 #   All NetBox components run on worker nodes.
 
 allowedHosts:
-  - "netbox.your-domain.com"
+  - "netbox.famillelebreuil.net"
 
 superuser:
   name: admin
-  email: "admin@your-domain.com"
+  email: "admin@famillelebreuil.net"
   existingSecret: "netbox-secrets"
 
 existingSecret: "netbox-secrets"
+
+# Single web replica
+replicaCount: 1
 
 externalDatabase:
   existingSecretName: "netbox-secrets"
@@ -71,12 +74,12 @@ nodeSelector:
   custom.kaas.infomaniak.cloud/node-role: "worker"
 
 worker:
+  replicaCount: 1
   nodeSelector:
     custom.kaas.infomaniak.cloud/node-role: "worker"
 
 housekeeping:
-  nodeSelector:
-    custom.kaas.infomaniak.cloud/node-role: "worker"
+  enabled: false
 
 # Service — ClusterIP only, ingress managed by Terraform
 service:
