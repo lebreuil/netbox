@@ -1,12 +1,11 @@
 # NetBox Helm chart values
 #
 # Secret management:
-#   All secrets are fetched from OpenBao at pod startup via the OpenBao
-#   Agent Injector sidecar. Secrets are written as files to /bao/secrets/
-#   and never stored as Kubernetes Secrets.
+#   External Secrets Operator synchronizes the namespace-local OpenBao
+#   secret into the netbox-secrets Kubernetes Secret.
 #
 #   The platform team must create the following secrets in OpenBao at
-#   secret/netbox/config before the application can start:
+#   secret/config in the NetBox OpenBao namespace before the application can start:
 #     secret-key:            Django session encryption key (50+ chars)
 #     superuser-password:    Initial admin password
 #     superuser-api-token:   Initial admin API token (40 hex chars)
@@ -106,21 +105,6 @@ readinessProbe:
   timeoutSeconds: 10
   failureThreshold: 5
 
-# OpenBao Agent Injector annotations
-# The injector sidecar fetches secrets from OpenBao at pod startup
-# and writes them to /bao/secrets/config inside the pod.
-# The init container then creates the netbox-secrets Kubernetes Secret
-# from the injected file so the chart can reference it via existingSecret.
-podAnnotations:
-  bao.openbao.org/agent-inject: "true"
-  bao.openbao.org/role: "netbox"
-  bao.openbao.org/agent-inject-secret-config: "secret/data/netbox/config"
-  bao.openbao.org/agent-inject-template-config: |
-    {{- with secret "secret/data/netbox/config" -}}
-    secret-key={{ .Data.data.secret-key }}
-    superuser-password={{ .Data.data.superuser-password }}
-    superuser-api-token={{ .Data.data.superuser-api-token }}
-    postgresql-password={{ .Data.data.postgresql-password }}
-    valkey-password={{ .Data.data.valkey-password }}
-    email-password={{ .Data.data.email-password }}
-    {{- end }}
+# Secrets are synchronized by the namespace-local ExternalSecret in
+# deploy/manifests/external-secrets.yaml. The resulting netbox-secrets Secret
+# is referenced by the chart settings above.
