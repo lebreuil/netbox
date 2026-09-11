@@ -36,10 +36,6 @@ existingSecret: "netbox-secrets"
 # Single web replica
 replicaCount: 1
 
-externalDatabase:
-  existingSecretName: "netbox-secrets"
-  existingSecretKey: "postgresql-password"
-
 taskQueuing:
   existingSecretName: "netbox-secrets"
   existingSecretKey: "valkey-password"
@@ -62,8 +58,9 @@ valkey:
     nodeSelector:
       custom.kaas.infomaniak.cloud/node-role: "worker"
 
-# PostgreSQL
+# PostgreSQL - deployed by the NetBox chart
 postgresql:
+  enabled: true
   primary:
     nodeSelector:
       custom.kaas.infomaniak.cloud/node-role: "worker"
